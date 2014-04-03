@@ -1,0 +1,142 @@
+<div class="container">
+  <div class="text-center">
+  <h2>Thoughts</h2>
+  </div>
+
+  <div class="hero-unit">
+  <h3 id="title">How Scheme finally taught me recursion</h3>
+  <h4 id="date">March 3rd, 2014</h4>
+  <p id="body">Recursion is one of those computer science topics that I, at least, just didn't get until I finally got it. I had different professors describe it (one even said he just thinks of it as "magic"), I read about it online, and I struggled with it in homework assignments. However, I really just didn't truely understand how it all worked until I had to write in Scheme for my programming languages class.</p>
+  <p> Now it has been a while since I have used recursion, but I still remember the feeling of triumph when on one project in my Data Mining Class, I was beating my head against the wall we have all encountered a thousand times and it finally clicked. Instead of the 5 different, and incredibly inelegant ways I had been writing the function, one simple recusion call was all it took (see the code <a src="/python">here</a>). I can thank Scheme for this amazing relevation.</p>
+  <p>Scheme is a functional language that is a dialect of Lisp. I learned it for Programming Languages my sophomore year of college in order to later write an interpreter for Scheme in C. Needless to say it was a long quarter, but I learned a ton. Not the least of which was how to actually write and understand recursion. Here is a binary search tree implementation I and a partner wrote in Scheme</p>
+  <pre class="prettyprint">
+  ;Binary Search Trees
+  ;9/11/2011
+  ;Alexandra Price and Morgan Jones
+
+  ;Return an empty tree
+  (define null-bst
+    (lambda ()
+      () ))
+
+  ;Returns true if bst is empty, false otherwise
+  (define null-bst? 
+    (lambda (bst) 
+      (if (null? bst) #t
+       #f)))
+  
+  ;Returns the root of the bst
+  (define entry
+    (lambda (bst)
+      (cond 
+            ;returns #f if the bst does not have three items, the last two of which are lists
+            ((not (= (length bst) 3)) #f)
+            ((not(list? (car(cdr(cdr bst))))) #f)
+            ((not(list? (car(cdr bst)))) #f)
+            (else (car bst)))))
+
+  ;Returns the left subtree of the bst
+  (define left
+    (lambda (bst)
+      (cond
+        ;returns #f if the bst does not have three items, the last two of which are lists
+        ((not (= (length bst) 3)) #f)
+            ((not(list? (car(cdr(cdr bst))))) #f)
+            ((not(list? (car(cdr bst)))) #f)
+            (else (car (cdr bst))))))
+
+  ;Returns the right subtree of the bst
+  (define right
+    (lambda (bst)
+      (cond
+        ;returns #f if the bst does not have three items, the last two of which are lists
+        ((not (= (length bst) 3)) #f)
+            ((not(list? (car(cdr(cdr bst))))) #f)
+            ((not(list? (car(cdr bst)))) #f)
+            (else (car (cdr (cdr bst)))))))
+    
+  ;Creates a bst given the root and left and right subtrees
+  (define make-bst
+    (lambda (elt left right)
+      ;check that the root is a number
+      (if (not (number? elt)) #f)
+      ;make sure the left and right subtrees are valid (either null or contain 3 items)
+      (if (not (= (length left) 3))
+          (if (not (null? left)) #f))
+      (if (not (= (length right) 3))
+          (if (not (null? right)) #f))
+      ;check that the last two items of the left subtree (if it is not null) are lists
+      (if (not (null? left))
+          (begin
+          (if (not(list? (car(cdr(cdr left))))) #f)
+          (if (not(list? (car(cdr left)))) #f)))
+      ;check that the last two items of the right subtree (if it is not null) are lists
+      (if (not (null? right))
+          (begin
+          (if (not(list? (car(cdr(cdr right))))) #f)
+          (if (not(list? (car(cdr right)))) #f)))
+      ;if the input passes our extensive tests, create the tree
+      (cons elt (cons left (list right)))))
+    
+ 
+  ;Returns a list containing all values from a preorder traversal
+  (define preorder
+    (lambda (bst)
+      (if (null? bst) bst
+            (append (list(car bst)) (preorder (left bst)) (preorder (right bst))))))
+
+  ;Returns a list containing all values from an inorder traversal
+  (define inorder
+    (lambda (bst)
+      (if (null? bst) bst
+            (append (preorder (left bst))(list(car bst))(preorder (right bst))))))
+
+  ;Returns a list containing all values from a postorder travesal
+  (define postorder
+      (lambda (bst)
+        (if (null? bst) bst
+            (append (preorder (left bst))(preorder (right bst))(list(car bst))))))
+
+  ;Return a new bst with the new integer in the correct location
+  (define insert
+    (lambda (v bst)
+      (if (null? bst) 
+          (append (list v) '(()()))
+          ;We find the right place for the new item while continually maintaining the original bst
+          (cond
+            ((= v (car bst)) bst)
+            ((< v (car bst)) (cons (car bst) (cons (insert v (left bst))(list(right bst)))))
+            ((> v (car bst)) (cons (car bst) (cons (left bst) (list(insert v (right bst))))))))))
+
+  ;our testing:
+  (null-bst)
+  (null-bst? '(5))
+  (entry '())
+  (left '(5 (3) ()))
+  (right '(5 (3) ()))
+  (left '(5(3()())(4()())))
+  (make-bst 5 '() '(6 () ()))
+  (postorder '(5 (3 (4 () ())()) (6 () (7 () ()))))
+  (insert 3 '(5 (3 () ()) (7 () ())))
+  </pre>
+  <p>Since Scheme is a functional language that esstentially means that everything you do has to be recursive. This meant no work arounds, no half-assing it, just straight up recursion. Now the best way I know to explain recursion is somewhat of a conglomoration of the explinations I have digested over the years. Recursion works when smaller and smaller instances of a problem are solved building back up to solve the original problem. </p>
+
+  <p>Now I'm not saying that learning Scheme is the way to learn recursion, but it certainly cleared up the magic of recursion worked for me.</p>
+  </div>
+
+  <div class="hero-unit">
+  <h3 id="title">Business Cards Are The Worst</h3>
+  <h4 id="date">April 2nd, 2014</h4>
+    <p id="body">I was handed a business card in a meeting not too long ago and looked at it during the meeting thinking well it is rude if I throw it away now, but it is only going to a) sit at my desk for months and evetually get thrown away b) get shoved into my purse to and sit there for months and eventually get thrown away c) get thrown away after this meeting. All roads led to me throwing away this card. I already had the person's contact info (we had exchanged e-mails before the meeting) and I don't currently use a business card digitizer app. I don't have one of those because I really only get business cardseither in very specific, random, and infrequent meetings or recently when all my friends graduated and got jobs and were eager to show them off. However, the fate of all those cards was the same. The trash can. Thinking through this problem I had a question why the heck isn't LinkedIn doing something about this?</p>
+    <p> I saw them as the doui- head slapping forehead obvious solution to this problem. LinkedIn has already captured information on 250 million+ professionals. They are constantly capturing more and more data about how those people are connected and how the professional world grows, changes, lives, and breathes. They are the first stop for people to find a new job, meet someone in an industry, and keep up their professional network. Why shouldn't they tackle the problems of business cards in the 21st centrury? While there is a clear need for a solution the path to one is not as clear.</p>
+   <p> Here are some of the problems I see and their possible solutions (with the assumption that LinkedIn in the platform for this solution)
+	<ol>
+	<li>Business cards often contain more infomation than you would want publically available on your profile. The solution would allow people to give certain contacts their "digital business card" after or during a meeting. This would allow that person access to supplemental profile information that normal connections do not have. This eliminates the extra steps a person has to go through when they get a business card (either digitizing through a 3rd party app, putting into their phones contacts, etc)</li>
+	<li>For some people business cards are a visible reminder of the person and your interaction. This solution to this would be the email or push notification that accompanies sending someone your business card. While this reminder might be temporary so, in my opinion, is the reminder of a business card that gets thrown away.</li>
+	<li>Other people scribble notes about the meeting, the date, time, and interaction that they then refer back to. The LinkedIn digital business card would allow for notes to be taken about your connection with someone. This a feature that already exists in LinkedIn Premium and would work very well with a ditigal business card feature.</li>
+	<li> I like paper. Well then I can't help you there, feel free to rock those old school business cards then!</li>
+	</ol>
+    <p>Some of the features I have suggested are already available on LinkedIn Premium, but I think even adding a few little tweaks and marketing it so people begin to use LinkedIn for this purpose instead of business cards, rather than in addition to would be great. 
+  </div>
+</div>
+

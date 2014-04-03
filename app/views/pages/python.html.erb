@@ -1,0 +1,800 @@
+<div class="container">
+<div class="text-center">
+<h2>Object Oriented Love</h2>
+<p>A few examples of my work in Python</p>
+</div>
+
+<div class="hero-unit">
+<h3 id="title">Agglomerative Clustering</h3>
+<p>An assignment from my Data Mining Class. Agglomerative Clustering is a bottom up approach to hierarchical clustering. This was built to run on data about the writing portfolio all students at Carleton College must complete in their sophomore year.</p>
+<pre class="prettyprint">
+'''
+Agglomerative Clustering Program
+By Morgan Jones
+'''
+
+from math import *
+from heapq import *
+
+def logTransform(fileName, numLines):
+	#This logs all the points and puts them into lists
+	data = open(fileName)
+	
+	clusters = []
+	for line in data:
+		singleCluster = []
+		lineTemp = line.replace(' ', '')
+		tempLine = lineTemp.split()
+		logLine = []
+		for item in tempLine:
+			numberItem = float(item)
+			logItem = log((numberItem+1), 2)
+			logLine.append(logItem)
+		singleCluster.append(logLine)
+		clusters.append(singleCluster)
+		
+	return clusters[:numLines]
+	
+def normalizeData(fileName, numLines):
+	#This normalizes all the rows and puts them into lists
+	data = open(fileName)
+	
+	clusters = []
+	for line in data:
+		singleCluster = []
+		lineTemp = line.replace(' ', '')
+		tempLine = lineTemp.split()
+		normLine = []
+		for item in tempLine:
+			numberItem = float(item)
+			sqItem = numberItem**2
+			normLine.append(sqItem)
+		normTotal = sum(normLine)
+		normTotalSqrt = sqrt(normTotal)
+		normedLine = []
+		for item in tempLine:
+			numberItem = float(item)
+			newItem = numberItem/normTotalSqrt
+			normedLine.append(newItem)
+		singleCluster.append(normedLine)
+		clusters.append(singleCluster)
+		
+	return clusters[:numLines]
+
+def euclideanSqDist(center1, center2):
+	#This calculates Euclidean Square Distance between two points
+	differences = []
+	index = 0
+	for item in center1:
+		difference = item - center2[index]
+		diffSq = difference**2
+		differences.append(difference)
+		index += 1
+	distance = abs(sum(differences))
+	
+	return distance
+
+def recalculateCenter(cluster1Index, cluster2Index, clusters):
+	#This recalculates the center for a new cluster
+	cluster1 = clusters[cluster1Index]
+	cluster2 = clusters[cluster2Index]
+	
+	index = 0
+	total = 0
+	totals = []
+	item = cluster1[0]
+	for i in item:
+		totals.append(0)
+	
+	if len(cluster1) > len(cluster2):
+		indexPoint = 0
+		for item in cluster1:
+			indexItem = 0
+			for i in item:
+				try:
+					i2 = cluster2[indexPoint][indexItem]
+				except IndexError:
+					i2 = 0
+				totals[indexItem] = i + i2 + totals[indexItem]
+				indexItem += 1
+			indexPoint += 1
+	else:
+		indexPoint = 0
+		for item in cluster2:
+			indexItem = 0
+			for i in item:
+				try:
+					i2 = cluster1[indexPoint][indexItem]
+				except IndexError:
+					i2 = 0
+				totals[indexItem] = i + i2 + totals[indexItem]
+				indexItem += 1
+			indexPoint += 1
+
+	cluster1.extend(cluster2)
+	newCluster = cluster1
+	clusters.insert(cluster1Index, newCluster)
+	clusters.remove(cluster2)
+	clusters.remove(cluster1)
+	#Index of the new center is the same as Cluster 1 because the new cluster is being put where cluster 1 used to be and therefore the corresponding center needs to be at the same index in the center List
+	centerIndex = cluster1Index
+	
+	newCenter = []
+	for item in totals:
+		numberClusters = len(cluster1[0])
+		meanItem = float(item)/float(numberClusters)
+		newCenter.append(meanItem)
+		
+	return newCenter, centerIndex, clusters
+	
+def createHeap(centerList):
+	#Create list of distances in tuple with centers
+	distanceIndex = 0
+	allDist = []
+	#Create a list of pairs of items
+	pairs = []
+	pairs = [(x,y) for x in centerList for y in centerList]
+	for item in pairs:
+		if item[0] == item[1]:
+			pairs.remove(item)
+	for item in pairs:
+		for otherItem in pairs:
+			if item[0] == otherItem[1] and item[1] == otherItem[0]:
+				pairs.remove(otherItem)
+	for item in pairs:
+		allDist.append((euclideanSqDist(item[0], item[1]), item))
+
+	#Create the heap with the tuples, using a min heap and having the first item be the distance so it will be sorted by distance	
+	heapDist = []
+	for item in allDist:
+		heappush(heapDist, item)
+	
+	return heapDist
+	
+def updateCenters(heap, clusters, centerList):
+	#This updates the centerList and calls recalculate center so that the cluster and center lists continue to match indexes
+	closest = heappop(heap)
+
+	center1 = closest[1][0]
+	center2 = closest[1][1]
+
+	cluster1Index = centerList.index(center1)
+	cluster2Index = centerList.index(center2)
+	
+	newCenter, centerIndex, clusters = recalculateCenter(cluster1Index, cluster2Index, clusters)
+	
+	centerList.remove(center1)
+	centerList.remove(center2)
+	centerList.insert(centerIndex, newCenter)
+	
+	return centerList, clusters
+
+def calculateError(clusters, centerList):
+	#Distance between each point in cluster and center
+	errors = []
+	for cluster in clusters:
+		center = centerList[clusters.index(cluster)]
+		for point in cluster:
+			error = euclideanSqDist(point, center)
+			errors.append(error)
+	TCE = sum(errors)
+	return TCE
+
+if __name__ == '__main__':
+
+	#clusters = logTransform('wp_namespace2.data.txt', 100)
+	clusters = normalizeData('wp_namespace2.data.txt', 100)
+	centerListLists = clusters
+	centerList = []
+	for item in centerListLists:
+		for i in item:
+			centerList.append(i)
+
+	distHeap = createHeap(centerList)
+	TCE1 = calculateError(clusters, centerList)
+
+	while len(clusters) > 1:
+		centerList, clusters = updateCenters(distHeap, clusters, centerList)
+		#This is where you lose efficiency because you are creating the heap everytime rather than updating it
+		distHeap = createHeap(centerList)
+		TCE = calculateError(clusters, centerList)
+		if len(clusters) == 5:
+			print 'logged', centerList
+</pre>
+</div>
+
+<div class="hero-unit">
+<h3>Reverse GeoLocation</h3>
+<p>I built a python program to find the IP addresses associated with certain companies. To achieve this I needed to scrub the search tems and ensure I was maximizing quality results and minimizing noise. This service was created in response to customer demand and is the opposite of the service they normally provided, geolocation of an IP address. This determines how unique search terms are and alters them.</p> 
+<pre class="prettyprint">
+'''
+Alter
+
+A program that will assign a level of uniqueness to a Search_Term class instance and then alter by broadening or narrowing the term as determined by the level of uniqueness
+
+Morgan Jones
+Last Updated: 7/28/2011 by Morgan Jones
+'''
+
+import string, cPickle
+from sanitize import *
+from itertools import *
+from config import Config
+
+def get_config(file_name):
+	'''
+	This brings in the information stored in the configuration files and then it is distributed as needed
+	Input: name of the configuration file
+	Output: variables that are needed to run the program: number of words that makes a term too broad, number of words that makes a term too narrow, number of words that makes a term just right, number of characters in too broad that necessitates an alteration
+	'''
+	#Opens the file and gets the configuration variables
+	f = file(file_name)
+	cfg = Config(f)
+	#Changes the variables into formats that can be used
+	#A search term that has this many words or fewer is considered too broad
+	too_broad_cutoff = int(cfg.too_broad_cutoff)
+	#A search term that has either number of words below is considered just right
+	just_right_cutoffs = cfg.just_right_cutoff.split(',')
+	#A search term that has this or more words is considered too narrow
+	too_narrow_cutoff = int(cfg.too_narrow_cutoff)
+	#If a too broad term has this many characters or fewer then the front % is taken off and a space is put after the end %
+	num_char_cutoff = int(cfg.num_characters_cutoff)
+
+	return too_broad_cutoff, just_right_cutoffs, too_narrow_cutoff, num_char_cutoff
+
+def get_nodes(file_name):
+	'''
+	This gets the nodes that were created in sanitize.py and pickled
+	Input: pickled file
+	Output: 
+	'''
+	#Opens the file
+	file = open(file_name, 'rb')
+	#Unpickles the file
+	nodes = cPickle.load(file)
+
+	return nodes
+
+def import_exceptions(file_exceptions):
+	'''
+	This opens a file of known exceptions to the sanitization process that can be updated by the user and creates a dictionary with the key as the exception as it would appear after sanitization and the value as what it should be replaced with
+	Input: text file of user entered exceptions
+	Output: dictionary containing those exceptions
+	'''
+	#Opens the file that holds all the exceptions
+	exceptions = open(file_exceptions)
+	#Creates a dictionary of the exceptions: key = how search term would appear, value = what it should be shortened to
+	exceptions_dict = {}
+	for line in exceptions.readlines():
+		#New lines are stripped
+		line = line.strip('\n')
+		#The lines are split at the comma
+		line = line.split(',')
+		exceptions_dict[line[0].strip('"')] = line[1].strip('"')
+	#Closes the file
+	exceptions.close()
+
+	return exceptions_dict
+
+def find_exceptions(search_term):
+	'''
+	This check to see if a search term is an exception. If it is then the name that will be used to search with is the value of the dictionary entry for that exception
+	Input: Search_Term class instance
+	Output: if needed an updated Search_Terms class instance variable final_name
+	'''
+	#Creates exceptions dictionary
+	exceptions_dict = import_exceptions('exceptions.txt')
+	#Checks to see if the search term is an exception
+	for key in exceptions_dict:
+		if key == search_term.original_name:
+			#If it is an exception the name that will be used to search in sql is the exception dictionary key
+			search_term.final_name = exceptions_dict[key]
+			#Shows that this final name is an exception and therefore will not be changed again
+			search_term.exception = True
+
+	return search_term
+
+def multi_split(string, seperators):
+	'''
+	Splits a string based on a number of different separators
+	Input: the string to be split, the different separators it should be split on
+	Output: a list of the original string, split on the correct separators
+	'''
+	#Makes a list of the string
+	list_str = [string]
+	#For each separator it splits the string
+	for sep in seperators:
+		string, list_str = list_str, []
+		for item in string:
+			list_str += item.split(sep)
+
+	return list_str
+
+def assign_level(search_term, too_broad_cutoff, just_right_cutoffs, too_narrow_cutoff, semi_generics):
+	'''
+	Assigns a level off too narrow, too broad or just right to a search term depending on the number of unique terms in the sanitized name
+	Input: Search_Term class instance
+	Output: updated Search_Term class instance
+	'''
+	#Get the current search term, splits it appropriately to find the number of unique terms in the search term
+	name = search_term.sanitized_name
+	#Split the search term into a list using spaces and percent signs
+	name_list = multi_split(name, [' ', '%'])
+	#Take out empty items in the list
+	name_list = [item for item in name_list if item != '']
+	to_remove = []
+	for item in name_list:
+		if item+'%' in semi_generics.values():
+			to_remove.append(item)
+	for item in to_remove:
+		name_list.remove(item)
+	#Find how many unique terms there are in the search term
+	num_unique = len(name_list)
+	#Assigns a level of uniqueness to the search_term by updating the class variable level
+	if num_unique == 0:
+		#This joins the search term using the %
+		search_term.sanitized_name = '%'.join(search_term.sanitized_terms)
+		search_term.sanitized_name = '%'+search_term.sanitized_name+'%'
+		#This then splits the search term based on spaces and %
+		name_list = multi_split(search_term.sanitized_name, [' ', '%'])
+		#This takes out the empty items in the name list
+		name_list = [item for item in name_list if item != '']
+		num_unique = len(name_list)
+		#With the new number of unique items the levels of uniqueness is checked again
+		if num_unique == too_broad_cutoff:
+			search_term.level = ['too broad', int(num_unique), name_list]
+		if num_unique == just_right_cutoffs[0] or num_unique== just_right_cutoffs[1]:
+			search_term.level = ['just right', int(num_unique), name_list]
+		if num_unique >= too_narrow_cutoff:
+			search_term.level = ['too narrow', int(num_unique), name_list]
+	else:
+		if num_unique == too_broad_cutoff:
+			search_term.level = ['too broad', int(num_unique), name_list]
+		if num_unique == int(just_right_cutoffs[0]) or num_unique== int(just_right_cutoffs[1]):
+			search_term.level = ['just right', int(num_unique), name_list]
+		if num_unique >= too_narrow_cutoff:
+			search_term.level = ['too narrow', int(num_unique), name_list]
+
+	return search_term
+
+def just_right(search_term):
+	'''
+	If the search term level is just right (aka 2 unique words) then replace spaces with % and that is the name that will be used to search
+	Input: Search_Term class instance
+	Output: updated Search_Term class instance
+	'''
+	#Replaces spaces with %
+	search_term.final_name = search_term.sanitized_name.replace(' ', '%')
+
+	return search_term
+
+def too_broad(search_term, num_char_cutoff, semi_generics):
+	'''
+	If the search term level is too broad(aka 1 unique word) then remove the left % and that is the name that will be used to search
+	Input: Search_Term class instance
+	Output: updated Search_Term class instance
+	'''
+	to_remove = []
+	name_list = multi_split(search_term.sanitized_name, [' ', '%'])
+	for item in name_list:
+		if item+'%' in semi_generics.values():
+			to_remove.append(item)
+	for item in to_remove:
+		name_list.remove(item)
+	new_name = '%'.join(name_list)
+	if len(name_list[0])-2 <= num_char_cutoff:
+		#Take off the front %
+		search_term.final_name = new_name.lstrip('%')
+		#Take off the end %
+		search_term.final_name = search_term.final_name.rstrip('%')
+		#Put back on % with a space in front of it
+		search_term.final_name = search_term.final_name+' %'
+		for item in to_remove:
+			search_term.final_name = search_term.final_name+item+'%'
+	else:
+		#Otherwise leave the search term alone
+		search_term.final_name = search_term.sanitized_name
+	
+	return search_term
+
+def combos(search_term):
+	'''
+	This creates all of the possible combinations of the search term when one word is removed
+	Input: search_term
+	Output: tuple of tuples of combinations of size n-1 terms in the search term
+	'''
+	#Gets the number of unique terms in the search term from the class variable level
+	num_unique = int(search_term.level[1])
+	#Gets the search term as a list from the class variable level
+	name_list = search_term.level[2]
+	#Creates a tuple of tuples of the different possible combinations of size n-1 of terms in the search term
+	possibilites = combinations(name_list, num_unique-1)
+
+	return possibilites
+
+def gain_characters(possibilites):
+	'''
+	Finds the search term that will yield the most information gain based on the number of characters
+	Input: tuple of tuples of all possible combinations of size n-1 of the search term words
+	Output: a search term
+	'''
+	#Checks the number of characters of the search terms
+	longest  = ' '
+	for item in possibilites:
+		#The longest is kept and updated when a longer one is checked
+		if len(' '.join(item)) > len(longest):
+			longest = '%'.join(item)
+
+	return longest
+
+def too_narrow(search_term):
+	'''
+	This checks all of the possible combinations of the search term when one word is removed. The longest of these (most characters) is chosen as the name that will be used to search
+	Input: Search_Term class instance
+	Output: updated Search_Term class instance
+	'''
+	#Creates all possible n-1 combinations of search term words
+	possibilites = combos(search_term)
+	#Finds the best n-1 search term (based on number of characters
+	best = gain_characters(possibilites)
+	#Adds back in the % on the front and end
+	best = '%'+best+'%'
+	#Makes the final search term the n-1 size search term with the most characters
+	search_term.final_name = best
+	#Updates the level as well
+	search_term.level[1] = search_term.level[1]-1
+	search_term.level[2] = multi_split(best, [' ', '%'])
+
+	return search_term
+
+def alter_name(search_term, num_char_cutoff, semi_generics):
+	'''
+	Checks the level of uniqueness and changes the search term as necessary
+	Input: Search_Term class instance
+	Output: Search_Term class instance
+	'''
+	#Checks to see if the search term is an exception
+	if search_term.exception == True:
+		#If it an exception return the node as is
+		return search_term
+	else:
+		#Otherwise check the level and alter the search term appropriately
+		if search_term.level[0] == 'too broad':
+			search_term = too_broad(search_term, num_char_cutoff, semi_generics)
+		elif search_term.level[0] == 'just right':
+			search_term = just_right(search_term)
+		else:
+			search_term = too_narrow(search_term)
+
+		return search_term
+
+def finish_up():
+	too_broad_cutoff, just_right_cutoffs, too_narrow_cutoff, num_char_cutoff = get_config('config_alter.txt')
+	#This reads in the Search_Term class instances created and updated by sanitize.py
+	nodes = get_nodes('sanitized_nodes')
+	#For each of the nodes in the nodes list they are categorized and altered to improve recall
+	final_names = []
+	search_terms = []
+	original_names = []
+	#Creates the list of generic terms and dictionary of semi-generic terms
+	generic_terms, semi_generics = generic_files('generic_terms.txt', 'semi_generic_terms.txt')
+	for search_term in nodes:
+		#These change the search_terms appropriately and update the class instance
+		search_term = find_exceptions(search_term)
+		search_term = assign_level(search_term, too_broad_cutoff, just_right_cutoffs, too_narrow_cutoff, semi_generics)
+		search_term = alter_name(search_term, num_char_cutoff, semi_generics)
+		#This replaces all non-ascii characters in the original company name from the customer with a ?
+		for char in search_term.original_name:
+			if char not in string.printable:
+				search_term.original_name = search_term.original_name.replace(char, '?')
+		#Add the appropriate parts of the node to their respective lists
+		original_names.append(search_term.original_name)
+		final_names.append(search_term.final_name)
+		search_terms.append(search_term)
+		print search_term.sanitized_name
+	#The Search_Term class instances that have been created are pickled into a format that can be opened by narrow.py
+	cPickle.dump(search_terms, open('done_nodes', 'wb'))
+
+	return original_names, final_names, search_terms
+
+def main():
+	original_names, final_names, search_terms = finish_up()
+
+if __name__ == '__main__':
+	main()
+
+</pre>
+</div>
+<div class="hero-unit">
+  <h3>The Titanic: Who Survived?</h3>
+  <p>My partner and I wrote a CART decision tree to determine based on demographic information who surived and who did not on the Titanic.</p>
+  <pre class="prettyprint">
+from itertools import *
+from math import *
+from random import *
+
+class Node:
+    def __init__(self, points, col, att, clss, left, right, level):
+        '''
+        If node is leaf, test condition column, test condition attributes, left, and right will be None. If node is not leaf, the classification will be None
+        '''
+        self.points = points
+        self.testCol = col
+        self.testAttributes = att
+        self.classification = clss
+        self.left = left
+        self.right = right
+        self.level = level
+        
+    def printN(self):
+        '''
+        Prints the node
+        '''
+        print 'Level: ', self.level
+        printArray(self.points, "Points")
+        print "Data: "
+        print "Col: ", self.testCol, " Att: ", self.testAttributes, " Class: ", self.classification
+        
+    def printArray(array, title):
+        '''
+        Prints an array where each row is on one line with a title.Input: array and string title.
+        Output: print array
+        '''
+        print title
+        if len(array) == 0:
+            print "(empty)"
+        else:
+            for item in array:
+                print item
+        print
+
+def readDataFromFile(fileName):
+    '''
+    Read the data from the file abd store as a 2D list. Input: file name. Output: list of rows in the data, a header dictionary where keys are headers and values are possible attributes, and the list of headers
+    '''
+    dataList = []
+    headerDict = {}
+    file = open(fileName, "r")
+    header = file.readline().strip().split("\t")
+    for att in header:
+        headerDict[att] = []
+    for line in file:
+        temp = []
+        line = line.strip()
+        line = line.split("\t")
+        dataList += [line]
+    file.close()
+    length = len(dataList[0])
+    for row in dataList:
+        for i in range(length):
+             if row[i] not in headerDict[header[i]]:
+                  headerDict[header[i]].append(row[i])
+                  headerDict[header[i]].sort()
+    return dataList, headerDict, header
+    
+def createTestSet(dataSet):
+        '''
+        Creates the test set and training set. Train set be 85% of the full set (227) and test set be 15% (40)
+        '''
+        testSet = []
+        seed(0) #ensures that I generate the same test and training set each time
+        sizeCounter = 0
+        while sizeCounter != int(0.1 * len(dataSet)):
+            ranNum = randint(0, len(dataSet) - sizeCounter)
+            entry = dataSet.pop(ranNum)
+            testSet.append(entry)
+            sizeCounter += 1
+        return dataSet, testSet
+
+def gini(nodeList):
+   '''
+   Finds the gini impurity using the equation gini = 1 - sum(p(i|t)^2)
+   where p(i|t) is the fraction of records belonging to a class i and a given node t. The nodeList is all of the items in node t. We will always be doing binary classifications so the classification will be "1". Input: node t and class i. Output: gini imputity, count of number points will classification. 
+   '''
+   length = float(len(nodeList))
+   sum = 0
+   count = 0
+   if length != 0:
+       for node in nodeList:
+           if node[-1] == "Alive":
+               count += 1
+       sum += (count / length)**2
+       sum += ((length - count) / length)**2
+       return 1 - sum
+   else:
+       return 0
+   
+def entropy(nodeList):
+    '''
+    Finds the entropy imputity measure using the equation entropy = -sum(p(i|t)log_2(p(i|t))). We will always use binary classifications. Input: nodeList. Output: entropy impurity.
+    '''
+    length = float(len(nodeList))
+    sum = 0
+    count = 0
+    if length != 0:
+        for node in nodeList:
+            if node[-1] == "Alive":
+                count += 1
+        sum += ((count / length) * log((count / length), 2))
+        sum += (((length - count) / length) * log(((length - count) / length), 2))
+        return -1 * sum
+    else:
+        return 0
+
+def classError(nodeList):
+    '''
+    Finds the classification error imputity using the equation impurity = 1 - max(p(i|t)). We will always use binary classifications. Input: nodeList. Output: calssification impurity.
+    '''
+    length = float(len(nodeList))
+    maxValue = 0
+    count = 0
+    if length != 0:
+        for node in nodeList:
+            if node[-1] == "Alive":
+                count += 1
+        maxValue = max(count, 1 - count)
+        return 1 - (maxValue / length)
+    else:
+        return 0
+
+def splitNodeB(nodeList, col, attList):
+    '''
+    Splits the nodeList into two separate nodes given the attribute(s). If a point's attributes is in the list of attributes, that points goes to the left node. Input: list of points in a node, col number, and list of attributes. Output: left child and right child of that node.
+    '''
+    left = []
+    right = []
+    for node in nodeList:
+        if node[col] in attList:
+            left.append(node)
+        else:
+            right.append(node)
+    return left, right
+    
+def findBestSplit(node, headerDict, header):
+    '''
+    For the list of attributes, find the attribute which give the purest split. Input: node, headerDict, header. Output: attribute split, column number, left child points, and right child points
+    '''
+    pointList = node.points
+    finalLeft = []
+    finalRight = []
+    finalSplit = () #stores a tuple of the column data and the attribute of the best split
+    minImpurity = 1
+    for col in range(len(pointList[0]) - 1): #-1 for the classification column
+        attList = headerDict[header[col]]
+        for size in range((len(attList) / 2) + 1):
+            atts = combinations(attList, size) #gets attribute combinations to try
+            for comb in atts:
+                #print "Col: ", col
+                left, right = splitNodeB(pointList, col, comb)
+                tempL = gini(left)
+                tempR = gini(right)
+                #finds the weighted sum of the left and right impurity measures
+                tempTotal = ((float(len(left)) / (len(pointList))) * tempL)
+                tempTotal += ((float(len(right)) / (len(pointList))) * tempR)
+                #print "Gini: ", tempIm
+                if tempTotal < minImpurity:
+                    finalCol = col
+                    finalAtt = comb
+                    minImpurity = tempTotal
+                    finalLeft = left
+                    finalRight = right
+    return finalCol, finalAtt, finalLeft, finalRight
+
+def stoppingCond(node):
+    '''
+    Ideal stopping condition is if every point in a node has the same classification. Input: node. Output: true or false
+    '''
+    pointList = node.points
+    #checking if all attributes are the same
+    temp = True
+    list1 = pointList[0][:-2] #remember the last column is the classification
+    for point in pointList[1:]:
+        list2 = point[:-2]
+        if list1 != list2:
+            temp = False
+    if temp:
+        return True
+    #checks to see if all classifications are the same
+    clf = pointList[0][-1] #classification of 1st node
+    for point in pointList:
+        if point[-1] != clf:
+            return False
+    return True
+
+def buildTreeHlp(pointList, int, headerDict, header):
+   '''
+   Helper function for our build tree function to make it recursive. Input: nodeList, headerDict, header. Output: node
+   '''
+   child = Node(pointList, None, None, None, None, None, int)
+   print "STOP: ", stoppingCond(child)
+   if stoppingCond(child):
+       #child is a leaf
+       child.classification = findClassification(child)
+   else:
+       col, att, left, right = findBestSplit(child, headerDict, header)
+       #checks if the best split is to repeat previous split which would cause infinite loop
+       if len(left) == 0 or len(right) == 0:
+           child.classification = findClassification(child)
+       else:
+           child.testCol = col
+           child.testAttributes = att
+           child.left = buildTreeHlp(left, int + 1, headerDict, header)
+           child.right = buildTreeHlp(right, int + 1, headerDict, header)
+   
+   return child
+
+def buildTree(nodeList, headerDict, header):
+    '''
+    Main function that builds our decision tree. Input: list of all initial points, headerDict, header. Output: final split list
+    '''
+    root = Node(nodeList, None, None, None, None, None, 0)
+    print "ROOT"
+    root.printN()
+    col, att, left, right = findBestSplit(root, headerDict, header)
+    root.testCol = col
+    root.testAttributes = att
+    root.left = buildTreeHlp(left, 1, headerDict, header)
+    root.right = buildTreeHlp(right, 1, headerDict, header)
+    printTree(root)
+
+def findClassification(leaf):
+    pointList = leaf.points
+    aliveCount = 0
+    for point in pointList:
+        if point[-1] == "Alive":
+            aliveCount += 1
+    if aliveCount == max(aliveCount, len(pointList) - aliveCount):
+        return "Alive"
+    else:
+        return "Dead"
+
+def printArray(array, title):
+    '''
+    Prints an array where each row is on one line with a title.Input: array and string title.
+    Output: print array
+    '''
+    print title
+    if len(array) == 0:
+        print "(empty)"
+    else:
+        for item in array:
+            print item
+    print
+            
+def printDict(dict, title):
+    '''
+    Prints dictionary where each key is a header and the values are on separate lines below.
+    Input: dict and string title. Output: print dict
+    '''
+    print title
+    for key in dict.keys():
+        print "KEY: ", key
+        for item in dict[key]:
+             print item
+    print
+    
+def printTree(root):
+
+    if root != None:
+        root.printN()
+        printTree(root.left)
+        printTree(root.right)
+
+def main():
+    #fileName = raw_input("Text File Please: ")
+    fileName = "titanic.txt"
+    dataList, headerDict, header = readDataFromFile(fileName)
+    print "HEADER: ", headerDict
+    trainSet, testSet = createTestSet(dataList)
+    buildTree(testSet, headerDict, header)
+    
+    
+#ATTRIBUTE GOES TO THE LEFT SO IF ATT = 0, THEN LEFT CHILD HAS ATT = 0, RIGHT CHILD HAS ATT NOT 0
+
+
+
+if __name__ == '__main__':
+    main()
+  </pre>
+</div>
+</div>
